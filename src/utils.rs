@@ -12,17 +12,3 @@ pub fn bootleg_random() -> u32 {
         RAND
     }
 }
-
-pub fn set_random(pin: &mut Flex<'_>) {
-    match bootleg_random() % 3 {
-        0 => {
-            pin.set_as_output(py32_hal::gpio::Speed::Low);
-            pin.set_low();
-        }
-        1 => {
-            pin.set_as_output(py32_hal::gpio::Speed::Low);
-            pin.set_high();
-        }
-        _ => pin.set_as_input(py32_hal::gpio::Pull::None)
-    }
-}
