@@ -1,0 +1,1 @@
+cargo +nightly flash --target thumbv6m-none-eabi --chip PY32F002Ax5 --connect-under-reset
