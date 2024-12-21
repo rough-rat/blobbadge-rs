@@ -5,6 +5,12 @@ use embassy_time::Timer;
 
 use crate::utils;
 
+// awful i know
+const STATE_LOW: u8 = 0;
+const STATE_HIGH: u8 = 1;
+const STATE_TRI: u8 = 2;
+
+#[allow(dead_code)]
 pub fn set_random(pin: &mut Flex<'_>) {
     match utils::bootleg_random() % 3 {
         0 => {
@@ -24,6 +30,7 @@ pub struct Charlie<'a, const PIN_COUNT: usize>
     where [(); PIN_COUNT * (PIN_COUNT-1)]:
 {
     pub pin_list: [Flex<'a>; PIN_COUNT],
+    pub pin_state: [u8; PIN_COUNT],
     pub buf: [u8; PIN_COUNT * (PIN_COUNT-1)]
 }
 
@@ -47,6 +54,7 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
 
             let mut c = Charlie {
                 pin_list: gpio_list,
+                pin_state: [0; PIN_COUNT],
                 buf: [0; PIN_COUNT * (PIN_COUNT-1)]
             };
 
@@ -65,23 +73,63 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
             }
 
             if self.buf[row as usize * (PIN_COUNT -1) + col + offs] > 0 {
-                self.pin_list[col].set_as_output(py32_hal::gpio::Speed::Low);
-                self.pin_list[col].set_high();
+                self.pin_state[col] = STATE_HIGH;
             }
             else {
-                self.pin_list[col].set_as_input(py32_hal::gpio::Pull::None);
+                self.pin_state[col] = STATE_TRI;
             }
 
-            self.pin_list[row as usize].set_as_output(py32_hal::gpio::Speed::Low);
-            self.pin_list[row as usize].set_low();
+            self.pin_state[row as usize] = STATE_LOW;
         }
-
-        Timer::after_millis(40).await;
+        self.latch();
+        // Timer::after_millis(20).await;
+        cortex_m::asm::delay(2000);
 
         for col in 0..PIN_COUNT {
-            self.pin_list[col].set_as_output(py32_hal::gpio::Speed::Low);
-            self.pin_list[col].set_high();
+            self.pin_state[col] = STATE_TRI;
         }
+        self.latch();
+        // Timer::after_millis(50).await;
+
+    }
+
+    fn latch(&mut self){
+
+        // for col in 0..PIN_COUNT {
+        //     self.pin_list[col].yolo(self.pin_state[col]);
+        //     // cortex_m::asm::delay(8_000 * 50);
+        // }
+
+
+        for col in 0..PIN_COUNT {
+            match self.pin_state[col] {
+                STATE_LOW => {
+                    self.pin_list[col].set_low();
+                }
+                STATE_HIGH => {
+                    self.pin_list[col].set_high();
+                }
+                _ => {}
+            }
+        }
+
+        for col in 0..PIN_COUNT {
+            match self.pin_state[col] {
+                STATE_LOW => {
+                    self.pin_list[col].set_as_output(py32_hal::gpio::Speed::VeryHigh);
+                    // let test = self.pin_list[col].get_port();
+
+                    // let b = self.pin_list[col].pin.block();
+                }
+                STATE_HIGH => {
+                    self.pin_list[col].set_as_output(py32_hal::gpio::Speed::VeryHigh);
+                }
+                _ => {
+                    self.pin_list[col].set_as_input(py32_hal::gpio::Pull::None);
+                }
+            }
+        }
+
     }
 
     pub async fn draw(&mut self) {
@@ -90,6 +138,7 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
         }
     }
 
+    #[allow(dead_code)]
     pub fn draw_random(&mut self) {
         for i in 0..PIN_COUNT {
             set_random(&mut self.pin_list[i]);

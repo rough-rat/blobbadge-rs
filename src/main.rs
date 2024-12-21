@@ -13,12 +13,9 @@ use defmt::*;
 use {defmt_rtt as _, panic_halt as _};
 // use cortex_m_rt::entry;
 
-
 mod charlie;
 mod utils;
 mod bat;
-
-
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
@@ -47,20 +44,26 @@ async fn main(_spawner: Spawner) {
     // charlie::charlie_simple_loop(led_pins).await;
 
     let mut cr = charlie::Charlie::new(red_pins);
-    // let mut cw = charlie::Charlie::new(white_pins);
+    let mut cw = charlie::Charlie::new(white_pins);
     
     let mut cnt:u32 = 0;
     // cr.buf[0] = 0x01;
-    cr.buf[33] = 0x01;
+    // cr.buf[33] = 0x01;
+    cw.buf[0] = 0x01;
     loop{
 
         // cr.draw();
         // cw.draw_random();
         cr.draw().await;
+        cw.draw().await;
 
         cnt += 1;
-
-        // cr.buf[(cnt % 32)as usize] = 0x01;
+        
+        // if cnt % 32 == 0 {
+            cr.buf[((cnt) % 42)as usize] = !cr.buf[((cnt) % 42)as usize];
+            // cw.buf[((cnt) % 12)as usize] = !cw.buf[((cnt) % 12)as usize];
+        // }
+        
         if cnt % 1000 == 0 {
             info!("tick {}", cnt);
         }
