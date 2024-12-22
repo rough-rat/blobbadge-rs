@@ -44,23 +44,25 @@ async fn main(_spawner: Spawner) {
     // charlie::charlie_simple_loop(led_pins).await;
 
     let mut cr = charlie::Charlie::new(red_pins);
-    let mut cw = charlie::Charlie::new(white_pins);
+    // let mut cw = charlie::Charlie::new(white_pins);
     
-    let mut cnt:u32 = 0;
-    // cr.buf[0] = 0x01;
-    // cr.buf[33] = 0x01;
-    cw.buf[0] = 0x01;
+    let mut cnt:u16 = 0;
     loop{
 
         // cr.draw();
         // cw.draw_random();
         cr.draw().await;
-        cw.draw().await;
+        // cw.draw().await;
 
         cnt += 1;
         
+        cr.set_by_offs(
+            usize::from(cnt) % cr.buf_size(),
+            (cr.buf[usize::from(cnt) % cr.buf_size()] + 1)%4
+        );
+
         // if cnt % 32 == 0 {
-            cr.buf[((cnt) % 42)as usize] = !cr.buf[((cnt) % 42)as usize];
+            // cr.buf[((cnt) % 42)as usize] = !cr.buf[((cnt) % 42)as usize];
             // cw.buf[((cnt) % 12)as usize] = !cw.buf[((cnt) % 12)as usize];
         // }
         

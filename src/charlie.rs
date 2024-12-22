@@ -10,6 +10,8 @@ const STATE_LOW: u8 = 0;
 const STATE_HIGH: u8 = 1;
 const STATE_TRI: u8 = 2;
 
+pub const BIT_DEPTH: u8 = 2;
+
 #[allow(dead_code)]
 pub fn set_random(pin: &mut Flex<'_>) {
     match utils::bootleg_random() % 3 {
@@ -63,7 +65,24 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
         }
     }
 
-    async fn draw_row(&mut self, row: u8){
+    pub fn pin_count(&self) -> usize {
+        PIN_COUNT
+    }
+
+    pub fn buf_size(&self) -> usize {
+        PIN_COUNT * (PIN_COUNT-1)
+    }
+
+    pub fn set_by_offs(&mut self, offs: usize, val: u8) {
+        assert!(offs < self.buf_size());
+        self.buf[offs] = val;
+    }
+
+    // fn set(&mut self, row: u8, col: u8, val: u8) {
+    //     self.buf[row as usize * (PIN_COUNT -1) + col as usize] = val;
+    // }
+
+    async fn draw_row(&mut self, row: u8, iter: u8) {
         let mut offs: usize = 0;
         for col in 0..PIN_COUNT {
 
@@ -72,7 +91,7 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
                 continue;
             }
 
-            if self.buf[row as usize * (PIN_COUNT -1) + col + offs] > 0 {
+            if self.buf[row as usize * (PIN_COUNT -1) + col + offs] > iter {
                 self.pin_state[col] = STATE_HIGH;
             }
             else {
@@ -83,7 +102,7 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
         }
         self.latch();
         // Timer::after_millis(20).await;
-        cortex_m::asm::delay(2000);
+        // cortex_m::asm::delay(50);
 
         for col in 0..PIN_COUNT {
             self.pin_state[col] = STATE_TRI;
@@ -94,13 +113,6 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
     }
 
     fn latch(&mut self){
-
-        // for col in 0..PIN_COUNT {
-        //     self.pin_list[col].yolo(self.pin_state[col]);
-        //     // cortex_m::asm::delay(8_000 * 50);
-        // }
-
-
         for col in 0..PIN_COUNT {
             match self.pin_state[col] {
                 STATE_LOW => {
@@ -133,8 +145,10 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
     }
 
     pub async fn draw(&mut self) {
-        for i in 0..PIN_COUNT {
-            self.draw_row(i as u8).await;
+        for iter in 0.. 2_u8.pow(BIT_DEPTH.into()) {
+            for i in 0..PIN_COUNT {
+                self.draw_row(i as u8, iter).await;
+            }
         }
     }
 
