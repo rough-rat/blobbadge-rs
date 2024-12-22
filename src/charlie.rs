@@ -4,13 +4,15 @@ use py32_hal::{gpio::{Flex, AnyPin}, Peripheral};
 use embassy_time::Timer;
 
 use crate::utils;
+use defmt::*;
 
 // awful i know
 const STATE_LOW: u8 = 0;
 const STATE_HIGH: u8 = 1;
 const STATE_TRI: u8 = 2;
 
-pub const BIT_DEPTH: u8 = 2;
+pub const BIT_DEPTH: u8 = 8;
+const DELAY_BASE: u32 = 100;
 
 #[allow(dead_code)]
 pub fn set_random(pin: &mut Flex<'_>) {
@@ -60,7 +62,6 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
                 buf: [0; PIN_COUNT * (PIN_COUNT-1)]
             };
 
-            c.buf = [0; PIN_COUNT * (PIN_COUNT-1)];
             return c
         }
     }
@@ -74,7 +75,7 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
     }
 
     pub fn set_by_offs(&mut self, offs: usize, val: u8) {
-        assert!(offs < self.buf_size());
+        // assert!(offs < self.buf_size());
         self.buf[offs] = val;
     }
 
@@ -82,8 +83,15 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
     //     self.buf[row as usize * (PIN_COUNT -1) + col as usize] = val;
     // }
 
+    pub fn get(&mut self, row: u8, col: usize) -> &mut u8 {
+        // self.buf[row as usize * (PIN_COUNT -1) + col as usize]
+        &mut self.buf[row as usize * (PIN_COUNT -1) + col as usize]
+    }
+
     async fn draw_row(&mut self, row: u8, iter: u8) {
         let mut offs: usize = 0;
+        let comp_mask = 1 << iter;
+
         for col in 0..PIN_COUNT {
 
             if col == row.into() {
@@ -91,7 +99,8 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
                 continue;
             }
 
-            if self.buf[row as usize * (PIN_COUNT -1) + col + offs] > iter {
+            // if self.buf[row as usize * (PIN_COUNT -1) + col + offs] & comp_mask != 0 {
+            if *self.get(row,col + offs) & comp_mask != 0 {
                 self.pin_state[col] = STATE_HIGH;
             }
             else {
@@ -101,8 +110,17 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
             self.pin_state[row as usize] = STATE_LOW;
         }
         self.latch();
+
+        // https://www.youtube.com/watch?v=8wMKw4m6-Rc&t=452s
+        // Thanks, bitluni!
+        let delay_mod = 2_u32.pow(u32::from(iter));
+
+        // info!("value: {:#010b}, compmask: {:#010b}, iter: {},  delay: {}",
+        //     self.buf[0],comp_mask,
+        //     iter, delay_mod);
+
         // Timer::after_millis(20).await;
-        // cortex_m::asm::delay(50);
+        cortex_m::asm::delay(DELAY_BASE * delay_mod);
 
         for col in 0..PIN_COUNT {
             self.pin_state[col] = STATE_TRI;
@@ -145,7 +163,8 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
     }
 
     pub async fn draw(&mut self) {
-        for iter in 0.. 2_u8.pow(BIT_DEPTH.into()) {
+        // for iter in 0.. 2_u8.pow(BIT_DEPTH.into()) {
+        for iter in 0.. BIT_DEPTH {
             for i in 0..PIN_COUNT {
                 self.draw_row(i as u8, iter).await;
             }

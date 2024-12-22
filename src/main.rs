@@ -9,6 +9,9 @@ use embassy_executor::Spawner;
 
 use py32_hal::{gpio::Pin, Peripheral};
 
+use py32_hal::rcc::{Pll, PllSource, Sysclk};
+use py32_hal::time::Hertz;
+
 use defmt::*;
 use {defmt_rtt as _, panic_halt as _};
 // use cortex_m_rt::entry;
@@ -20,7 +23,14 @@ mod bat;
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
     info!("Hello World!");
-    let p = py32_hal::init(Default::default());
+
+    let mut cfg: py32_hal::Config = Default::default();
+    cfg.rcc.hsi = Some(Hertz::mhz(24));
+    cfg.rcc.pll = Some(Pll {
+        src: PllSource::HSI,
+    });
+    cfg.rcc.sys = Sysclk::PLL;
+    let p = py32_hal::init(cfg);
 
     _spawner.spawn(bat::run_bat_monitor(p.ADC)).unwrap();
 
@@ -45,7 +55,6 @@ async fn main(_spawner: Spawner) {
 
     let mut cr = charlie::Charlie::new(red_pins);
     // let mut cw = charlie::Charlie::new(white_pins);
-    
     let mut cnt:u16 = 0;
     loop{
 
@@ -55,18 +64,22 @@ async fn main(_spawner: Spawner) {
         // cw.draw().await;
 
         cnt += 1;
+
+        // cr.buf = [cnt % charlie::BIT_DEPTH; 42];
         
         cr.set_by_offs(
             usize::from(cnt) % cr.buf_size(),
-            (cr.buf[usize::from(cnt) % cr.buf_size()] + 1)%4
+            (cr.buf[usize::from(cnt) % cr.buf_size()] + 8) % 128
         );
+
+        // (cr.buf[usize::from(cnt) % cr.buf_size()] + 1)%2_u8.pow(charlie::BIT_DEPTH.into())
 
         // if cnt % 32 == 0 {
             // cr.buf[((cnt) % 42)as usize] = !cr.buf[((cnt) % 42)as usize];
             // cw.buf[((cnt) % 12)as usize] = !cw.buf[((cnt) % 12)as usize];
         // }
         
-        if cnt % 1000 == 0 {
+        if cnt % 100 == 0 {
             info!("tick {}", cnt);
         }
 
