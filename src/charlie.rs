@@ -12,7 +12,19 @@ const STATE_HIGH: u8 = 1;
 const STATE_TRI: u8 = 2;
 
 pub const BIT_DEPTH: u8 = 8;
-const DELAY_BASE: u32 = 100;
+pub const TARGET_FPS: u32 = 60;
+
+//the delay base is calculated for a single row on of single charlieplex object
+const DELAY_DERATING: u32 = 16;  
+
+// frame_time = 1/fps
+// base = frame_time / 2^BIT_DEPTH
+// 1e6 / 60*256*16 = 4
+const DELAY_BASE_US: u32 = 
+    1_000_000 / (DELAY_DERATING * TARGET_FPS * 2_u32.pow(BIT_DEPTH as u32)); 
+// const DELAY_BASE: u32 = 100;
+
+
 
 #[allow(dead_code)]
 pub fn set_random(pin: &mut Flex<'_>) {
@@ -88,6 +100,16 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
         &mut self.buf[row as usize * (PIN_COUNT -1) + col as usize]
     }
 
+    // https://embassy.dev/book/#_executor
+    async fn delay (&self, time_us: u32) {
+        // if time_ns < 1000 {
+        //     //100cycles @ 24MHz = 4us 
+        //     cortex_m::asm::delay(time_ns);
+        // } else {
+            Timer::after_micros(time_us.into()).await;
+        // }
+    }
+
     async fn draw_row(&mut self, row: u8, iter: u8) {
         let mut offs: usize = 0;
         let comp_mask = 1 << iter;
@@ -118,9 +140,7 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
         // info!("value: {:#010b}, compmask: {:#010b}, iter: {},  delay: {}",
         //     self.buf[0],comp_mask,
         //     iter, delay_mod);
-
-        // Timer::after_millis(20).await;
-        cortex_m::asm::delay(DELAY_BASE * delay_mod);
+        self.delay(DELAY_BASE_US * delay_mod).await;
 
         for col in 0..PIN_COUNT {
             self.pin_state[col] = STATE_TRI;
@@ -162,6 +182,7 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
 
     }
 
+    //TODO: https://docs.rs/drawille-nostd/latest/drawille_nostd/
     pub async fn draw(&mut self) {
         // for iter in 0.. 2_u8.pow(BIT_DEPTH.into()) {
         for iter in 0.. BIT_DEPTH {
