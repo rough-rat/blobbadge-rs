@@ -53,23 +53,29 @@ async fn main(_spawner: Spawner) {
 
     let mut cr = charlie::Charlie::new(red_pins);
     // #[cfg(allow_debug_probe)] //todo
-    // let mut cw = charlie::Charlie::new(white_pins);
+    let mut cw = charlie::Charlie::new(white_pins);
 
     let mut cnt:u16 = 0;
-    let mut ticker = Ticker::every(Duration::from_secs(1));
+    let mut ticker = Ticker::every(Duration::from_millis(20));
 
     loop{
         let time_start: Instant = Instant::now();
         // cr.draw();
         // cw.draw_random();
         cr.draw().await;
-        // cw.draw().await;
+        cw.draw().await;
 
         cnt += 1;
         
         cr.set_by_offs(
             usize::from(cnt) % cr.buf_size(),
             (cr.buf[usize::from(cnt) % cr.buf_size()] + 8) % 128
+        );
+
+
+        cw.set_by_offs(
+            usize::from(cnt) % cw.buf_size(),
+            (cr.buf[usize::from(cnt) % cw.buf_size()] + 32) % 128
         );
 
         // (cr.buf[usize::from(cnt) % cr.buf_size()] + 1)%2_u8.pow(charlie::BIT_DEPTH.into())
@@ -79,7 +85,7 @@ async fn main(_spawner: Spawner) {
             // cw.buf[((cnt) % 12)as usize] = !cw.buf[((cnt) % 12)as usize];
         // }
         
-        if cnt % 100 == 0 {
+        if cnt % 10 == 0 {
             let duration: Duration = Instant::now() - time_start;
             info!("tick {}, render time {}us", cnt, duration.as_micros());
         }

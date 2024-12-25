@@ -15,7 +15,7 @@ pub const BIT_DEPTH: u8 = 8;
 pub const TARGET_FPS: u32 = 60;
 
 //the delay base is calculated for a single row on of single charlieplex object
-const DELAY_DERATING: u32 = 16;  
+const DELAY_DERATING: u32 = 8;  
 
 // frame_time = 1/fps
 // base = frame_time / 2^BIT_DEPTH
