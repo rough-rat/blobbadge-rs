@@ -4,7 +4,6 @@ use py32_hal::{gpio::{Flex, AnyPin}, Peripheral};
 use embassy_time::Timer;
 
 use crate::utils;
-use defmt::*;
 
 // awful i know
 const STATE_LOW: u8 = 0;
@@ -15,7 +14,7 @@ pub const BIT_DEPTH: u8 = 8;
 pub const TARGET_FPS: u32 = 60;
 
 //the delay base is calculated for a single row on of single charlieplex object
-const DELAY_DERATING: u32 = 8;  
+const DELAY_DERATING: u32 = 64;  
 
 // frame_time = 1/fps
 // base = frame_time / 2^BIT_DEPTH
@@ -23,7 +22,6 @@ const DELAY_DERATING: u32 = 8;
 const DELAY_BASE_US: u32 = 
     1_000_000 / (DELAY_DERATING * TARGET_FPS * 2_u32.pow(BIT_DEPTH as u32)); 
 // const DELAY_BASE: u32 = 100;
-
 
 
 #[allow(dead_code)]
@@ -68,7 +66,7 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
                 list
             };
 
-            let mut c = Charlie {
+            let c = Charlie {
                 pin_list: gpio_list,
                 pin_state: [0; PIN_COUNT],
                 buf: [0; PIN_COUNT * (PIN_COUNT-1)]
