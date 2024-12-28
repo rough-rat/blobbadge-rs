@@ -1,5 +1,7 @@
 
 use py32_hal::{gpio::{Flex, AnyPin}, Peripheral};
+use embassy_time::{Ticker, Duration, Instant};
+use defmt::*;
 
 use embassy_time::Timer;
 
@@ -10,17 +12,17 @@ const STATE_LOW: u8 = 0;
 const STATE_HIGH: u8 = 1;
 const STATE_TRI: u8 = 2;
 
-pub const BIT_DEPTH: u8 = 8;
+pub const BIT_DEPTH: u8 = 5;
 pub const TARGET_FPS: u32 = 60;
 
 //the delay base is calculated for a single row on of single charlieplex object
-const DELAY_DERATING: u32 = 64;  
+const DELAY_DERATING: u32 = 5;  
 
 // frame_time = 1/fps
 // base = frame_time / 2^BIT_DEPTH
 // 1e6 / 60*256*16 = 4
 const DELAY_BASE_US: u32 = 
-    1_000_000 / (DELAY_DERATING * TARGET_FPS * 2_u32.pow(BIT_DEPTH as u32)); 
+    1_000_000 / (DELAY_DERATING * TARGET_FPS * 3_u32.pow(BIT_DEPTH as u32)); 
 // const DELAY_BASE: u32 = 100;
 
 
@@ -109,6 +111,8 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
     }
 
     async fn draw_row(&mut self, row: u8, iter: u8) {
+        let time_start: Instant = Instant::now();
+
         let mut offs: usize = 0;
         let comp_mask = 1 << iter;
 
@@ -131,9 +135,11 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
         }
         self.latch();
 
+        let pre_latch: Duration = Instant::now() - time_start;
+
         // https://www.youtube.com/watch?v=8wMKw4m6-Rc&t=452s
         // Thanks, bitluni!
-        let delay_mod = 2_u32.pow(u32::from(iter));
+        let delay_mod = 3_u32.pow(u32::from(iter));
 
         // info!("value: {:#010b}, compmask: {:#010b}, iter: {},  delay: {}",
         //     self.buf[0],comp_mask,
@@ -144,6 +150,13 @@ impl <'a, const PIN_COUNT: usize> Charlie<'a, {PIN_COUNT} >
             self.pin_state[col] = STATE_TRI;
         }
         self.latch();
+
+        let post_latch: Duration = Instant::now() - time_start;
+        // info!("del {}, pre {}, post {} us",
+        //     DELAY_BASE_US * delay_mod,
+        //     pre_latch.as_micros(),
+        //     post_latch.as_micros());
+
         // Timer::after_millis(50).await;
 
     }

@@ -47,7 +47,7 @@ async fn main(_spawner: Spawner) {
     cfg.rcc.sys = Sysclk::PLL;
     let p = py32_hal::init(cfg);
 
-    _spawner.spawn(bat::run_bat_monitor(p.ADC)).unwrap();
+    // _spawner.spawn(bat::run_bat_monitor(p.ADC)).unwrap();
 
     let red_pins = [
         p.PA0.degrade(),
@@ -76,35 +76,42 @@ async fn main(_spawner: Spawner) {
     let mut ticker = Ticker::every(Duration::from_millis(20));
 
     loop{
+        
         let time_start: Instant = Instant::now();
+
+        for i in 0..8 {
+            let t: u8 = (cnt / 10) as u8;
+            // let t: u8 = i as u8 * 8;
+            cr.set_by_offs(
+                i,
+                t
+            );
+            cw.set_by_offs(
+                i,
+                t
+            );
+        }
         // cr.draw();
         // cw.draw_random();
         cr.draw().await;
-        cr.draw().await;
         // cr.draw().await;
         // cr.draw().await;
-        cr.draw().await;
+        // cr.draw().await;
+        // cr.draw().await;
         cw.draw().await;
 
         cnt += 1;
         
-        cr.set_by_offs(
-            usize::from(cnt) % cr.buf_size(),
-            (cr.buf[usize::from(cnt) % cr.buf_size()] + bootleg_random_u8()%16 - 8) % 3
-        );
+        // cr.set_by_offs(
+        //     usize::from(cnt) % cr.buf_size(),
+        //     (cr.buf[usize::from(cnt) % cr.buf_size()] + bootleg_random_u8()%16 - 8) % 3
+        // );
 
         // cw.set_by_offs(
         //     usize::from(cnt) % cr.buf_size(),
         //     (cr.buf[usize::from(cnt) % cr.buf_size()] + bootleg_random_u8()%16 - 8) % 3
         // );
 
-
-        // for i in 0..cr.buf_size() {
-        //     cr.set_by_offs(
-        //         i,
-        //         (cr.buf[i] + bootleg_random_u8()%3 - 1) % 128
-        //     );
-        // }
 
         // for i in 0..cr.buf_size() {
         //     cr.set_by_offs(
