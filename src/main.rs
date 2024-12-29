@@ -21,19 +21,8 @@ mod charlie;
 mod utils;
 mod bat;
 
-
-fn mod_clip(in_data: u8, modulus: u8) -> u8 {
-    let t: i32 = in_data as i32
-         + (bootleg_random_u8() % 3) as i32 - 1;
-    if t > modulus as i32 {
-        return modulus -1;
-    };
-    if t < 0  {
-        return 0;
-    }
-    return t as u8
-    // }
-}
+const ANIM_NUM: u8 = 1;
+const REDRAW_CNT :u16 = 10;
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
@@ -66,8 +55,6 @@ async fn main(_spawner: Spawner) {
         p.PA13.degrade(),
     ];
     
-    // charlie::charlie_simple_loop(led_pins).await;
-
     let mut cr = charlie::Charlie::new(red_pins);
     // #[cfg(allow_debug_probe)] //todo
     let mut cw = charlie::Charlie::new(white_pins);
@@ -76,79 +63,42 @@ async fn main(_spawner: Spawner) {
     let mut ticker = Ticker::every(Duration::from_millis(20));
 
     loop{
-        
         let time_start: Instant = Instant::now();
-
-        for i in 0..8 {
-            let t: u8 = (cnt / 10) as u8;
-            // let t: u8 = i as u8 * 8;
-            cr.set_by_offs(
-                i,
-                t
-            );
-            cw.set_by_offs(
-                i,
-                t
-            );
+        
+        match ANIM_NUM {
+            0 => {
+                cr.effect_ember();
+                cw.effect_ember();
+            }
+            _ => {
+                cr.set_by_offs(
+                    cnt, 
+                    (cr.get_by_offs(cnt) + 32) % 128
+                );
+                cw.set_by_offs(
+                    cnt, 
+                    (cw.get_by_offs(cnt) + 32) % 128
+                );
+            }
         }
-        // cr.draw();
-        // cw.draw_random();
-        cr.draw().await;
-        // cr.draw().await;
-        // cr.draw().await;
-        // cr.draw().await;
-        // cr.draw().await;
-        cw.draw().await;
+
+        for _ in 0..REDRAW_CNT {
+            cr.draw().await;
+            cw.draw().await;
+        }
 
         cnt += 1;
-        
-        // cr.set_by_offs(
-        //     usize::from(cnt) % cr.buf_size(),
-        //     (cr.buf[usize::from(cnt) % cr.buf_size()] + bootleg_random_u8()%16 - 8) % 3
-        // );
-
-        // cw.set_by_offs(
-        //     usize::from(cnt) % cr.buf_size(),
-        //     (cr.buf[usize::from(cnt) % cr.buf_size()] + bootleg_random_u8()%16 - 8) % 3
-        // );
-
-
-        // for i in 0..cr.buf_size() {
-        //     cr.set_by_offs(
-        //         i,
-        //         mod_clip(cr.buf[i],2)
-        //     );
-        // }
-        // cr.set_by_offs(
-        //     usize::from(cnt) % cr.buf_size(),
-        //     (cr.buf[usize::from(cnt) % cr.buf_size()] + bootleg_random_u8()%16 - 8) % 128
-        // );
-
-
-        // cw.set_by_offs(
-        //     usize::from(cnt) % cw.buf_size(),
-        //     (cr.buf[usize::from(cnt) % cw.buf_size()] + 32) % 128
-        // );
-
-        // (cr.buf[usize::from(cnt) % cr.buf_size()] + 1)%2_u8.pow(charlie::BIT_DEPTH.into())
-
-        // if cnt % 32 == 0 {
-            // cr.buf[((cnt) % 42)as usize] = !cr.buf[((cnt) % 42)as usize];
-            // cw.buf[((cnt) % 12)as usize] = !cw.buf[((cnt) % 12)as usize];
-        // }
-        
         if cnt % 10 == 0 {
             let duration: Duration = Instant::now() - time_start;
             info!("tick {}, render time {}us", cnt, duration.as_micros());
         }
         ticker.next().await;        
     }
-    // bat::run_adc(&mut p);
-
 }
 
+//conserve flash space with the non-handler
 #[exception]
 unsafe fn HardFault(_frame: &ExceptionFrame) -> ! {
-    SCB::sys_reset() // <- you could do something other than reset
+    SCB::sys_reset()
 }
 
